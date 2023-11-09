@@ -1,7 +1,7 @@
 {
   "name": "vscript-debug",
   "displayName": "VScript Debugger",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "publisher": "LionDoge",
   "description": "A debugger client for VScripts in games based on Source Engine.",
   "author": {
@@ -30,10 +30,10 @@
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/Microsoft/vscode-mock-debug.git"
+    "url": "https://github.com/LionDoge/vscode-vscript-debugger"
   },
   "bugs": {
-    "url": "https://github.com/Microsoft/vscode-mock-debug/issues"
+    "url": "https://github.com/LionDoge/vscode-vscript-debugger/issues"
   },
   "scripts": {
     "compile": "tsc -p ./",
@@ -41,11 +41,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "esbuild-base": "esbuild ./src/extension.ts --bundle --tsconfig=./tsconfig.json --external:vscode --format=cjs --platform=node --outfile=dist/extension.js",
     "watch": "npm run -S esbuild-base -- --sourcemap --sources-content=false --watch",
-    "build": "npm run -S esbuild-base -- --sourcemap --sources-content=false && npm run -S esbuild-web -- --sourcemap --sources-content=false",
+    "build": "npm run -S esbuild-base -- --sourcemap --sources-content=false",
     "package": "vsce package",
     "publish": "vsce publish",
     "publish-pre-release": "vsce publish --pre-release",
-    "vscode:prepublish": "rimraf dist && npm run -S esbuild-base -- --minify && npm run -S esbuild-web -- --minify"
+    "vscode:prepublish": "rimraf dist && npm run -S esbuild-base -- --minify"
   },
   "devDependencies": {
     "@total-typescript/ts-reset": "^0.4.2",
@@ -72,7 +72,6 @@
     "vsce": "^2.7.0"
   },
   "main": "./dist/extension.js",
-  "browser": "./dist/web-extension.js",
   "activationEvents": [
     "onDebug",
     "onDebugResolve:vscript",

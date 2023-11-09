@@ -2,6 +2,8 @@
 
 A debugger client extension using the Debug Adapter Protocol that allows debugging of VScripts in Source Engine games.
 This extension uses native debugging features present in Source games and thus doesn't require any third party tools to be loaded into the game itself, meaning that it is safe from VAC.
+
+Get it on the marketplace https://marketplace.visualstudio.com/items?itemName=LionDoge.vscript-debug
 <br/>
 
 ## Disclaimer
