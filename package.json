@@ -1,0 +1,286 @@
+{
+  "name": "vscript-debug",
+  "displayName": "VScript Debugger",
+  "version": "0.2.3",
+  "publisher": "LionDoge",
+  "description": "A debugger client for VScripts in games based on Source Engine.",
+  "author": {
+    "name": "Lion Doge"
+  },
+  "license": "GPL3",
+  "keywords": [
+    "vscript",
+    "csgo",
+    "tf2",
+    "l4d2",
+    "portal 2",
+    "Squirrel",
+    "vscript debugger",
+    "Squirrel debugger"
+  ],
+  "engines": {
+    "vscode": "^1.66.0"
+  },
+  "icon": "images/icon.png",
+  "categories": [
+    "Debuggers"
+  ],
+  "extensionDependencies": [
+  ],
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Microsoft/vscode-mock-debug.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Microsoft/vscode-mock-debug/issues"
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "lint": "eslint src --ext ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "esbuild-base": "esbuild ./src/extension.ts --bundle --tsconfig=./tsconfig.json --external:vscode --format=cjs --platform=node --outfile=dist/extension.js",
+    "watch": "npm run -S esbuild-base -- --sourcemap --sources-content=false --watch",
+    "build": "npm run -S esbuild-base -- --sourcemap --sources-content=false && npm run -S esbuild-web -- --sourcemap --sources-content=false",
+    "package": "vsce package",
+    "publish": "vsce publish",
+    "publish-pre-release": "vsce publish --pre-release",
+    "vscode:prepublish": "rimraf dist && npm run -S esbuild-base -- --minify && npm run -S esbuild-web -- --minify"
+  },
+  "devDependencies": {
+    "@total-typescript/ts-reset": "^0.4.2",
+    "@types/glob": "^7.2.0",
+    "@types/jest": "^29.4.0",
+    "@types/mocha": "^9.1.0",
+    "@types/node": "^14.18.33",
+    "@types/vscode": "^1.66.0",
+    "@types/xml2js": "^0.4.11",
+    "@typescript-eslint/eslint-plugin": "^5.17.0",
+    "@typescript-eslint/parser": "^5.17.0",
+    "@vscode/debugadapter": "^1.56.0",
+    "await-notify": "^1.0.1",
+    "base64-js": "^1.5.1",
+    "esbuild": "^0.14.29",
+    "eslint": "^8.12.0",
+    "events": "^3.3.0",
+    "glob": "^7.2.0",
+    "mocha": "^9.2.2",
+    "path-browserify": "^1.0.1",
+    "rimraf": "^3.0.2",
+    "typescript": "^4.6.3",
+    "url": "^0.11.0",
+    "vsce": "^2.7.0"
+  },
+  "main": "./dist/extension.js",
+  "browser": "./dist/web-extension.js",
+  "activationEvents": [
+    "onDebug",
+    "onDebugResolve:vscript",
+    "onDebugDynamicConfigurations:vscript"
+  ],
+  "workspaceTrust": {
+    "request": "never"
+  },
+  "contributes": {
+    "configuration": {
+      "title": "VScript Debugger",
+      "properties": {
+        "VScriptDebugger.connectionIP": {
+          "type": "string",
+          "default": "localhost",
+          "description": "The IP of the device on which the game is running to connect the debugger to. This setting can be overriden by the 'ip' setting in launch.json"
+        },
+        "VScriptDebugger.connectionPort": {
+          "type": "integer",
+          "default": 1234,
+          "description": "The port to use for debugger connections. It is not possible to change which port the game uses by normal means, only change if you know what you are doing."
+        },
+        "VScriptDebugger.resumeWorkaround": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically resumes execution if no data is sent in a certain time frame, workarounds the issue of not being able to break on breakpoints after execution was resumed by other means than the resume button (only applicable to Squirrel 2 games)."
+        },
+        "VScriptDebugger.resumeWorkaroundTimeout": {
+          "type": "integer",
+          "default": 2000,
+          "description": "Time in milliseconds. Only applies if \"Resume Workaround\" is enabled. How much to wait before assuming that no data will be recieved. Setting this higher will allow for remote debugging on slower connections, but the debugger won't be able to break on next breakpoints until this time has passed since last execution that was resumed by other means than the resume button."
+        },
+        "VScriptDebugger.scriptEngineVersion": {
+          "type": "string",
+          "default": "Squirrel2",
+          "description": "Defaults to this if not specified in launch.json. Determines which VScript engine version will be debugged. Used as a way to know which workarounds or specific functionalities need to be adjusted by the debugger.",
+          "scope": "window",
+          "enum": [
+            "Squirrel3",
+            "Squirrel2"
+          ],
+          "enumItemLabels": [
+            "VSquirrel version 3.x",
+            "VSquirrel version 2.x"
+          ],
+          "enumDescriptions": [
+            "Squirrel version 3.x games (i.e. L4D2, Team Fortress 2 ...)",
+            "Squirrel version 2.x games (i.e. Portal 2, CS:GO ...)"
+          ]
+        },
+        "VScriptDebugger.maximumStructureShortRepresentationValues": {
+          "type": "number",
+          "default": "4",
+          "description": "How much data to display in structured variables' (e.g. tables, arrays) short one lined representation without fully fetching all data.\n\nNOTE:Setting this to a high value could noticably slow down the debugger with large amounts of data."
+        },
+        "VScriptDebugger.hideNativeFunctions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Hide native functions from list of variables."
+        },
+        "VScriptDebugger.hideClassDefinitions": {
+          "type": "boolean",
+          "default": false,
+          "description": "Hide class definitions from list of variables."
+        },
+        "VScriptDebugger.rememberFileReferencesDuringSession": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "**Doesn't apply to L4D2** *(Workaround for a bug)* If multiple files of the same name exist then upon choosing one it will be remembered for the whole debugging session. You can enable this if you don't expect conflicts with files in your current project."
+        },
+        "VScriptDebugger.telnet.enable": {
+          "type": "boolean",
+          "default": false,
+          "description": "[NOT IMPLEMENTED] Enables support for communication between the game and Visual Studio Code for more integration."
+        },
+        "VScriptDebugger.telnet.port": {
+          "type": "integer",
+          "default": 34755,
+          "markdownDescription": "[NOT IMPLEMENTED] The port used for Telnet communication if enabled. Use this port with `-netconport` in your game's launch parameters."
+        },
+        "VScriptDebugger.displayRootTable": {
+          "type": "boolean",
+          "default": false,
+          "description": "If enabled gathers the root table and displays it in scopes view. Also allows to view 'this' table of script ran in the global scope. It will substantially increase the amount of data sent."
+        }
+      }
+    },
+    "menus": {
+      "editor/title/run": [
+        {
+          "command": "extension.vscript-debug.attachDebugger",
+          "when": "resourceLangId == squirrel",
+          "group": "navigation@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "extension.vscript-debug.attachDebugger",
+          "when": "resourceLangId == squirrel"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "extension.vscript-debug.attachDebugger",
+        "title": "Attach Debugger",
+        "category": "VScript",
+        "enablement": "!inDebugMode",
+        "icon": "$(debug-alt)"
+      }
+    ],
+    "breakpoints": [
+      {
+        "language": "squirrel"
+      }
+    ],
+    "languages": [
+      {
+        "id": "squirrel",
+        "aliases": [
+          "Squirrel",
+          "squirrel"
+        ],
+        "extensions": [
+          ".nut"
+        ]
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "vscript",
+        "languages": [
+          "squirrel"
+        ],
+        "label": "VScript",
+        "program": "./out/debugAdapter.js",
+        "runtime": "node",
+        "configurationAttributes": {
+          "attach": {
+            "properties": {
+              "trace": {
+                "type": "boolean",
+                "description": "Enable logging of the Debug Adapter Protocol.",
+                "default": true
+              },
+              "engineVersion": {
+                "type": "string",
+                "description": "Determines which VScript engine version will be debugged. Used as a way to know which workarounds or specific functionalities need to be adjusted by the debugger.",
+                "enum": [
+                  "Squirrel3",
+                  "Squirrel2"
+                ],
+                "enumDescriptions": [
+                  "Squirrel version 3.x games (i.e. L4D2, Team Fortress 2 ...)",
+                  "Squirrel version 2.x games (i.e. Portal 2, CS:GO ...). This setting is forwards compatible with Squirrel 3"
+                ]
+              },
+              "ip": {
+                "type": "string",
+                "description": "The IP of the device on which the game is running to connect the debugger to. If not set will use the global configuration.",
+                "default": "localhost"
+              },
+              "additionalScriptDirectories": {
+                "type": "array",
+                "description": "List of directories considered as valid paths containing VScripts."
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "vscript",
+            "request": "attach",
+            "name": "VScript",
+            "ip": "localhost",
+            "engineVersion": "Squirrel2"
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "VScript (Squirrel v3.x)",
+            "description": "Squirrel version 3.x games (i.e. L4D2, Team Fortress 2 ...)",
+            "body": {
+              "type": "vscript",
+              "request": "attach",
+              "name": "VScript (Squirrel 3)",
+              "engineVersion": "Squirrel3"
+            }
+          },
+          {
+            "label": "VScript (Squirrel v2.x)",
+            "description": "Squirrel version 2.x games (i.e. Portal 2, CS:GO ...)",
+            "body": {
+              "type": "mock",
+              "request": "attach",
+              "name": "VScript (Squirrel 2)",
+              "engineVersion": "Squirrel2"
+            }
+          }
+        ],
+        "variables": {
+          "AskForProgramName": "extension.vscript-debug.getProgramName"
+        }
+      }
+    ]
+  },
+  "dependencies": {
+    "html-entities": "^2.3.3",
+    "xml2js": "^0.4.23"
+  }
+}
