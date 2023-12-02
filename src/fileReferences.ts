@@ -9,60 +9,52 @@ import path = require('path');
 // contains functions for resolving file references, and prompting the user in case of issues with them.
 export async function resolveFileReference(debugSession: VScriptDebugSession, filename: string, errorOnMissing=true, askUser=false): Promise<string | string[] | void>
 {
-	if(!filename.endsWith(".nut") && !filename.endsWith(".nuc"))
-	{
-		window.showInformationMessage("The selected file is internal and cannot be displayed in the editor.", {title: "Ok"});
-		return;
-	}
 	// L4D2 gives full path, we don't need all of this for this case:
 	let fileNames: string[] = [];
 	let filesArraysArray: Array<Array<string>> = []; // mainly used for distinguising and displaying in quickpick.
 
 	// L4D2 case:
 	let l4d2_notFound = false;
-	if(filename.startsWith("scripts/vscripts"))
+
+	const pathPrefix = "scripts/vscripts";
+	if(filename.startsWith(pathPrefix))
 	{
-		let fileString = path.join(getScriptRootPath(), filename.slice(17));
+		let fileString = path.join(getScriptRootPath(), filename.slice(pathPrefix.length + 1));
 		let fileUri = vscode.Uri.file(fileString);
-		let filePromises: Promise<string>[] = [];
+		let fileThenables: Thenable<number>[] = [];
+
 		fileNames.push(fileString);
+		let fileIdx = 0;
+		try {
+			await vscode.workspace.fs.stat(fileUri);
+			// this will not happen if above fails, instead we catch and search in additional directories.
+			fileNames = [fileString];
+		} catch {
+			// if we didn't find the file in root script directory, maybe it's in additional directories?
+			for(let scriptPath of debugSession.additionalScriptDirectories)
+			{
+				let fileString = path.join(scriptPath, filename.slice(pathPrefix.length + 1));
+				let fileUri = vscode.Uri.file(fileString);
 
-		filePromises.push(new Promise<string>((resolve, reject) => {
-			const fsStat = vscode.workspace.fs.stat(fileUri);
-			fsStat.then((result: vscode.FileStat) => {
-				resolve(fileNames[0]);
-			}, (reason) => {
-				reject();
-			});
-		}));
+				fileNames.push(fileString); // fs.stat doesn't give us back the filename, we need to remember it.
+				fileThenables.push(
+					vscode.workspace.fs.stat(fileUri).then((value: vscode.FileStat) => {
+						return fileIdx;
+					})
+				);
+				fileIdx++;
+			}
 
-		// if we didn't find the file in root script directory, maybe it's in additional directories?
-		let fileIdx = 1;
-		for(let scriptPath of debugSession.additionalScriptDirectories)
-		{
-			let fileString = path.join(scriptPath, filename.slice(17));
-			let fileUri = vscode.Uri.file(fileString);
-			// this isn't very pretty I know, you can also blame VS Code API for not having a pretty way for checking if a file exists..
-			filePromises.push(new Promise<string>((resolve, reject) => {
-				const fileStr = fileString;
-				const fsStat = vscode.workspace.fs.stat(fileUri);
-				fsStat.then((result: vscode.FileStat) => {
-					resolve(fileStr);
-				}, (reason) => {
-					reject();
-				});
-			}));
-			fileNames.push(fileString);
-			fileIdx++;
+			let completedPromise = Promise.any(fileThenables);
+			await completedPromise.then((validFileIndex: number) => {
+				fileIdx = validFileIndex;
+			}).catch(() => l4d2_notFound = true);
 		}
-
-		let completedPromise = Promise.any(filePromises);
-		await completedPromise.then((value: string) => {
-			fileNames = [value];
-		});
-		await completedPromise.catch((reason) => {
-			l4d2_notFound = true;
-		});
+		if(!l4d2_notFound)
+		{
+			// we just use an array with one element to be compatible with rest of the code, and without having to do additional checks etc.
+			fileNames = [fileNames[fileIdx]]; // we care about one file only...
+		}
 	}
 	else // other games don't support full paths.
 	{
@@ -119,16 +111,12 @@ export async function resolveFileReference(debugSession: VScriptDebugSession, fi
 		}
 		else // no file found, but we don't show errors, let's return just the file name itself, so at least it could be displayed in the call stack view
 		{
-			return new Promise<string>((resolve, reject) => {
-				resolve(filename);
-			});
+			return filename;
 		}
 	}
 	else // we found just one file, we can just return it!
 	{
-		return new Promise<string>((resolve, reject) => {
-			resolve(fileNames[0]);
-		});
+		return fileNames[0];
 	}
 }
 

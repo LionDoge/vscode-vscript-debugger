@@ -30,7 +30,7 @@ export function isVariableEHandle(referenceList, reference: number): boolean
 				return true;
 			}
 		}
-		return false;
+		return false; // indeed we want to stop here.
 	}
 	return false;
 	//return !!this.localVariables.get(reference)!.find( element => ( element.type === "native function" && element.name === "entindex" ) );
@@ -182,7 +182,7 @@ async function parseCall(debugSession: VScriptDebugSession, call, forceLineNumbe
 		source = call['$']['src'];
 	}
 
-	if(source.endsWith(".nut") || source.endsWith(".nuc"))
+	if(source.endsWith(".nut"))
 	{
 		if(firstCall)
 		{
@@ -231,10 +231,10 @@ async function parseCall(debugSession: VScriptDebugSession, call, forceLineNumbe
 			return;
 		}
 	}
-	else { // Not a real file, probably internal game function.
-		//VScriptDebugSession.config.get<boolean>("")
+	else { // Not a real file, probably internal game function. (includes .nuc files, which we don't support)
 		src = debugSession.createSource(source);
 		src.presentationHint = "deemphasize";
+		// if it's first call it would be a good idea to notifty what's going on
 		if(firstCall)
 		{
 			presentFileNotRealMessage();
@@ -366,11 +366,6 @@ function parseLocalVariable(debugSession: VScriptDebugSession, local, currentFra
 
 export function parseReceivedData(debugSession: VScriptDebugSession, receivedData)
 {
-	//console.log(this._bufferedData);
-	// if(debugSession.scriptVersion === VScriptVersion.squirrel3)
-	// {
-	// 	removeWatch(debugSession, 0);
-	// }
 	if(debugSession.resumeTimer)
 	{
 		clearTimeout(debugSession.resumeTimer);
@@ -381,15 +376,11 @@ export function parseReceivedData(debugSession: VScriptDebugSession, receivedDat
 		debugSession.resetState();
 		if(debugSession.scriptVersion === VScriptVersion.squirrel3)
 		{
-			// Squirrel 2 is bugged to hell with removing watches at all. Let's not bother with that, it's not the end of the world. And watches dissapear upon disconnect anyways.
+			// Squirrel 2 is bugged with removing watches at all. Let's not bother with that, it's not the end of the world. And watches dissapear upon disconnect anyways.
 			// Observation: Sending 'go' request after removing a watch seems to make the game work again, however sometimes I noticed some other issues when doing that...
 			debugSession.cleanupUnusedWatches();
 		}
 		debugSession.sendEvent(new ContinuedEvent(VScriptDebugSession.threadID));
-		// if(debugSession.resumeTimer)
-		// {
-		// 	clearTimeout(debugSession.resumeTimer);
-		// }
 		return;
 	}
 	debugSession.watchesThisStep = [];
@@ -403,10 +394,6 @@ export function parseReceivedData(debugSession: VScriptDebugSession, receivedDat
 		{
 			debugSession.resumeExecution();
 			debugSession.resetFileReferences();
-			// if(debugSession.resumeTimer)
-			// {
-			// 	clearTimeout(debugSession.resumeTimer);
-			// }
 			return;
 		}
 	}
@@ -465,7 +452,6 @@ export function parseReceivedData(debugSession: VScriptDebugSession, receivedDat
 		let validatedWatchesIDs: number[][] = [];
 		debugSession.currentFrameID = 0;
 		for (let call of dataRoot['calls']['0']['call']) {
-			//console.log("current call: " + call['$']['fnc']);
 
 			if(!isUpdateData) // don't touch the call stack if we're only recieving update data.
 			{
@@ -484,17 +470,6 @@ export function parseReceivedData(debugSession: VScriptDebugSession, receivedDat
 						stackFrames.push(value);
 					}
 				});
-
-				// if(!VScriptDebugSession.config.get<boolean>("rememberFileReferencesDuringSession"))
-				// {
-				// 	for(const stack of debugSession.stacktraces)
-				// 	{
-				// 		if (stackFrames.includes(stack) && stack.source?.path)
-				// 		{
-				// 			debugSession.resolvedFileReferences.delete(path.basename(stack.source.path));
-				// 		}
-				// 	}
-				// }
 
 				debugSession.stacktraces = stackFrames;
 			}
@@ -534,7 +509,6 @@ export function parseReceivedData(debugSession: VScriptDebugSession, receivedDat
 		}
 
 		if (reason === 'breakpoint') {
-			//debugSession.sendEvent(new OutputEvent("The game will stop rendering until script execution is resumed.\n"));
 			debugSession.sendEvent(new StoppedEvent(reason, VScriptDebugSession.threadID));
 			debugSession.debuggerState = DebuggerState.stopped;
 		}
@@ -568,15 +542,6 @@ export function parseReceivedData(debugSession: VScriptDebugSession, receivedDat
 			debugSession.sendEvent(new StoppedEvent(reason, VScriptDebugSession.threadID));
 			debugSession.debuggerState = DebuggerState.stopped;
 		}
-
-		// if(!isUpdateData)
-		// {
-		// 	if(VScriptDebugSession.config.get('displayRootTable') && debugSession.scriptVersion === VScriptVersion.squirrel3)
-		// 	{
-		// 		addWatch(debugSession, 0, "clone ::getroottable()", "getroottable()", 0, 0, false);
-		// 		debugSession.socket?.write("ua\n", "ascii");
-		// 	}
-		// }
 	});
 
 

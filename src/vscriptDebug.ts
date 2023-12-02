@@ -838,39 +838,43 @@ export class VScriptDebugSession extends LoggingDebugSession {
 			let frameBaseName: string = "";
 			if(framePath)
 			{
-				if(path.isAbsolute(framePath)) // already resolved file reference.
-				{
+				// if it's nut a .nut then it's doubtful that anything useful will come out of it. Let's not do that to not generate popups
+				if(!framePath.endsWith(".nut")) {
 					this.sendResponse(response);
 					return;
 				}
+
+				// if we already have a resolved reference
+				for(const [_,value] of this.resolvedFileReferences.entries()) {
+					if(value.fullpath === framePath) {
+						this.sendResponse(response);
+						return;
+					}
+				}
+
+				// in case the reference is unconfirmed (always a file without the full path)
 				frameBaseName = path.basename(framePath);
+
 				const frameRefData: FileReferenceData | undefined = this.resolvedFileReferences.get(frameBaseName);
-				if(!frameRefData)
-				{
-					// resolve the file reference.
-					// await here since we need to wait for everything before sending invalidated event for client to get new stacks.
-					await resolveFileReference(this, frameBaseName, true, true).then( (file) => {
-						if(typeof file === "string")
+				// resolve the file reference.
+				// await here since we need to wait for everything before sending invalidated event for client to get new stacks.
+				await resolveFileReference(this, frameBaseName, true, true).then( (file) => {
+					if(typeof file === "string")
+					{
+						if(!frameRefData)
 						{
 							this.resolvedFileReferences.set(frameBaseName, {fullpath: file, count: 1});
-							this.stacktraces[workFrameID].source = this.createSource(file);
-							// fire an invalidated event in order to request the stack to update to current file.
-							this.sendEvent(new InvalidatedEvent(['stacks'], VScriptDebugSession.threadID, args.frameId));
 						}
-					});
-				}
-				else
-				{
-					await resolveFileReference(this, frameBaseName, true, true).then( (file) => {
-						frameRefData.count++;
-						if(typeof file === "string")
+						else
 						{
-							this.resolvedFileReferences.set(frameBaseName, frameRefData); // we don't change to a new file, just note that we have more than one ref already!
-							this.stacktraces[workFrameID].source = this.createSource(file);
-							this.sendEvent(new InvalidatedEvent(['stacks'], VScriptDebugSession.threadID, args.frameId));
+							frameRefData.count++;
+							this.resolvedFileReferences.set(frameBaseName, frameRefData);
 						}
-					});
-				}
+						this.stacktraces[workFrameID].source = this.createSource(file);
+						// fire an invalidated event in order to request the stack to update to current file.
+						this.sendEvent(new InvalidatedEvent(['stacks'], VScriptDebugSession.threadID, args.frameId));
+					}
+				});
 			}
 		}
 		this.sendResponse(response);
