@@ -610,7 +610,7 @@ export class VScriptDebugSession extends LoggingDebugSession {
 			const actualBreakpoints = breakpoints.map(breakpoint => {
 
 				let existingBp = originalBps.find(searchedBp => searchedBp.line === breakpoint.line);
-				let isVerified = false;
+				let isVerified = true;
 				if(existingBp)
 				{
 					isVerified = existingBp.verified;
@@ -726,7 +726,7 @@ export class VScriptDebugSession extends LoggingDebugSession {
 			if(bps)
 			{
 				response.body = {
-					breakpoints: bps
+					breakpoints: bps.map((bp) => { return { line: bp.line };} )
 				};
 			}
 		} else {
