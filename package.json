@@ -211,11 +211,6 @@
         "configurationAttributes": {
           "attach": {
             "properties": {
-              "trace": {
-                "type": "boolean",
-                "description": "Enable logging of the Debug Adapter Protocol.",
-                "default": true
-              },
               "engineVersion": {
                 "type": "string",
                 "description": "Determines which VScript engine version will be debugged. Used as a way to know which workarounds or specific functionalities need to be adjusted by the debugger.",
@@ -236,6 +231,10 @@
               "additionalScriptDirectories": {
                 "type": "array",
                 "description": "List of directories considered as valid paths containing VScripts."
+              },
+              "enableDebugLogging": {
+                "type": "boolean",
+                "description": "Print received XML data to the console."
               }
             }
           }
@@ -279,6 +278,7 @@
   },
   "dependencies": {
     "html-entities": "^2.4.0",
+    "xml-formatter": "^3.6.0",
     "xml2js": "^0.6.2"
   }
 }

@@ -23,11 +23,13 @@ import { resolveFileReference } from './fileReferences';
 import { getTableFromReference, parseReceivedData } from './parsing';
 import { addWatch, evaluateWatchRequest, removeWatch } from './watches';
 import { evaluateHoverRequest } from './hover';
+import xmlFormat from 'xml-formatter';
 
 interface IAttachRequestArguments extends DebugProtocol.LaunchRequestArguments {
 	ip?: string;
 	engineVersion?: string;
 	additionalScriptDirectories?: Array<string>;
+	enableDebugLogging?: boolean;
 }
 
 enum ProgressIconState {
@@ -99,6 +101,7 @@ export class VScriptDebugSession extends LoggingDebugSession {
 	private _debugPort: number = 1234;
 	private _debugIP: string = "localhost";
 	private _usingAttachIp = false;
+	private _enableDebugLogging = false;
 
 	// Saved responses
 	private attachResponse: DebugProtocol.AttachResponse | undefined;
@@ -111,7 +114,7 @@ export class VScriptDebugSession extends LoggingDebugSession {
 				break;
 			case ProgressIconState.receiving:
 				this.progressStatus.text = "$(loading~spin) VScript debugger: Receiving data";
-				this.progressStatus.tooltip = "The debug server is in process of sending the current state, it should not take too long.";
+				this.progressStatus.tooltip = "The debug server is in process of sending the current state, it should not take too long (being stuck in this state might be an extension issue).";
 				this.progressStatus.show();
 				break;
 			case ProgressIconState.parsing:
@@ -421,7 +424,6 @@ export class VScriptDebugSession extends LoggingDebugSession {
 		this.updateProgressBar(ProgressIconState.receiving);
 		this._bufferedData = this._bufferedData + data;
 		if(!this._bufferedData.endsWith("\r\n")) {return;}
-
 		try
 		{
 			this.updateProgressBar(ProgressIconState.parsing);
@@ -432,6 +434,11 @@ export class VScriptDebugSession extends LoggingDebugSession {
 			{
 				if (dataPackage.length > 0)
 				{
+					if(this._enableDebugLogging)
+					{
+						let formatted: string = xmlFormat(this._bufferedData.trimEnd(), {lineSeparator: "\n"});
+						this.sendEvent(new OutputEvent("Received XML from game:\n" + formatted + "\n", 'console'));
+					}
 					parseReceivedData(this, dataPackage);
 				}
 			}
@@ -482,8 +489,11 @@ export class VScriptDebugSession extends LoggingDebugSession {
 		{
 			this._debugIP = args.ip;
 			this._usingAttachIp = true;
-		} // else use the default config.
-
+		}// else use the default config.
+		if(args.enableDebugLogging !== undefined)
+		{
+			this._enableDebugLogging = args.enableDebugLogging;
+		}
 		switch (args.engineVersion?.toLowerCase()) {
 			case "squirrel2":
 				this.scriptVersion = VScriptVersion.squirrel2;
@@ -533,14 +543,18 @@ export class VScriptDebugSession extends LoggingDebugSession {
 	private sendRemoveBreakpoint(src: string, line: Number)
 	{
 		src = src.replace(/\\/g, "/");
-		this.socket?.write(`rb 0x${line.toString(16)}:${src}\n`, "ascii");
+		let message: string = `rb 0x${line.toString(16)}:${src}\n`;
+		this.debugPrint("Sendind message: " + message);
+		this.socket?.write(message, "ascii");
 	}
 
 	private async sendAddBreakpoint(src: string, line: Number)
 	{
 		// line numbers need to be given in hex.
 		src = src.replace(/\\/g, "/");
-		this.socket?.write(`ab 0x${line.toString(16)}:${src}\n`, "ascii");
+		let message: string = `ab 0x${line.toString(16)}:${src}\n`;
+		this.debugPrint("Sendind message: " + message);
+		this.socket?.write(message, "ascii");
 	}
 
 	private verifyBreakpoint(bp: IRuntimeBreakpoint): Promise<IRuntimeBreakpoint>
@@ -1003,6 +1017,7 @@ export class VScriptDebugSession extends LoggingDebugSession {
 
 	protected pauseRequest(response: DebugProtocol.PauseResponse, args: DebugProtocol.PauseArguments, request?: DebugProtocol.Request | undefined): void {
 		this.socket?.write("sp\n", 'ascii');
+		this.debugPrint("Sending 'sp' request (suspend)");
 		this.sendResponse(response);
 	}
 
@@ -1017,6 +1032,7 @@ export class VScriptDebugSession extends LoggingDebugSession {
 		}
 		else {
 			this.socket?.write("so\n", "ascii");
+			this.debugPrint("Sending 'so' message (step over)");
 			this.setResumeTimeout();
 		}
 		this.sendResponse(response);
@@ -1033,6 +1049,7 @@ export class VScriptDebugSession extends LoggingDebugSession {
 		}
 		else {
 			this.socket?.write("si\n", "ascii");
+			this.debugPrint("Sending 'si' message (step-in)");
 			this.setResumeTimeout();
 		}
 		this.sendResponse(response);
@@ -1128,15 +1145,6 @@ export class VScriptDebugSession extends LoggingDebugSession {
 		this.sendResponse(response);
 	}
 
-	/*
-	protected completionsRequest(response: DebugProtocol.CompletionsResponse, args: DebugProtocol.CompletionsArguments): void {
-
-		response.body = {
-
-		};
-		this.sendResponse(response);
-	}*/
-
 	protected cancelRequest(response: DebugProtocol.CancelResponse, args: DebugProtocol.CancelArguments) {
 		if (args.requestId) {
 			this._cancellationTokens.set(args.requestId, true);
@@ -1151,6 +1159,7 @@ export class VScriptDebugSession extends LoggingDebugSession {
 		if(this.stacktraces.length > 1)
 		{
 			this.socket?.write("sr\n", "ascii");
+			this.debugPrint("Sending 'sr' message (step return)");
 		}
 		else
 		{
@@ -1176,19 +1185,12 @@ export class VScriptDebugSession extends LoggingDebugSession {
 		if(this.debuggerState === DebuggerState.errored)
 		{
 			this.socket?.write("rd\n", "ascii");
+			this.debugPrint("Sending 'rd' message (ready)");
 		}
 		this.socket?.write("go\n", "ascii");
+		this.debugPrint("Sending 'go' message (resume)");
 		this.debuggerState = DebuggerState.ready;
 	}
-
-	// private findVariablesByReference(refid: number)
-	// {
-	// 	let deepVariables = Array<DebuggerVariable>();
-	// 	let result = this.localVariables.filter(element => {
-	// 		element.variableReference === refid;
-	// 	});
-	// 	return result.concat(deepVariables);
-	// }
 
 	public createSource(filePath: string): DebugProtocol.Source
 	{
@@ -1200,24 +1202,23 @@ export class VScriptDebugSession extends LoggingDebugSession {
 	 */
 	public sendUpdateRequest()
 	{
-		//if(!this.evaluateIgnoreInvalidatedRequest)
+		if(this.watchEvaluateTimer)
 		{
-			// dirty stuff, but I had no other ideas.
-			if(this.watchEvaluateTimer)
-			{
-				clearTimeout(this.watchEvaluateTimer);
-			}
-			this.watchEvaluateTimer = setTimeout(() => {
-				this.evaluateIgnoreInvalidatedRequest = true;
-				this.socket?.write("ua\n", "ascii");
-			}, 100);
+			clearTimeout(this.watchEvaluateTimer);
 		}
-		// else // reset value
-		// { // A bit hacky way to fix an issue where the client would constantly try to re-evaluate watches after invalidated request.
-		// 	setTimeout(() => {
-		// 		this.evaluateIgnoreInvalidatedRequest = false;
-		// 	}, 20);
-		// }
+		this.watchEvaluateTimer = setTimeout(() => {
+			this.evaluateIgnoreInvalidatedRequest = true;
+			this.debugPrint("Sending 'ua' request (update)");
+			this.socket?.write("ua\n", "ascii");
+		}, 100);
+	}
+
+	public debugPrint(message: string)
+	{
+		if(this._enableDebugLogging)
+		{
+			this.sendEvent(new OutputEvent(message, 'console'));
+		}
 	}
 }
 
