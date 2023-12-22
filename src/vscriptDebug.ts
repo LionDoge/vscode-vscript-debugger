@@ -1217,7 +1217,7 @@ export class VScriptDebugSession extends LoggingDebugSession {
 	{
 		if(this._enableDebugLogging)
 		{
-			this.sendEvent(new OutputEvent(message, 'console'));
+			this.sendEvent(new OutputEvent(message.trimEnd()+'\n', 'console'));
 		}
 	}
 }
