@@ -1025,13 +1025,15 @@ export class VScriptDebugSession extends LoggingDebugSession {
  	}
 
 	protected nextRequest(response: DebugProtocol.NextResponse, args: DebugProtocol.NextArguments): void {
-		if(this.debuggerState === DebuggerState.errored || this.debuggerState === DebuggerState.preResume) { // If we stopped on a exception then let this request continue the execution, as we can't do anything else anymore.
-			this.resumeExecution();
+		if(this.debuggerState === DebuggerState.preResume) { // If we stopped on a exception then let this request continue the execution, as we can't do anything else anymore.
+			//this.resumeExecution();
+			this.socket?.write("go\n", "ascii");
+			this.debugPrint("Sending 'go' message (continue)");
+			this.setResumeTimeout();
 		}
 		else {
 			this.socket?.write("so\n", "ascii");
 			this.debugPrint("Sending 'so' message (step over)");
-			this.setResumeTimeout();
 		}
 		this.sendResponse(response);
 	}
@@ -1043,6 +1045,7 @@ export class VScriptDebugSession extends LoggingDebugSession {
 
 	protected stepInRequest(response: DebugProtocol.StepInResponse, args: DebugProtocol.StepInArguments): void {
 		if(this.debuggerState === DebuggerState.errored || this.debuggerState === DebuggerState.preResume) { // If we stopped on a exception then let this request continue the execution, as we can't do anything else anymore.
+			// for errored state this will actualy send 'so'. Refer to comment inside the function as to why.
 			this.resumeExecution();
 		}
 		else {
@@ -1180,13 +1183,18 @@ export class VScriptDebugSession extends LoggingDebugSession {
 		this.entityDataWatches.clear();
 		this.entityDataWatchID = 1000000;
 
-		if(this.debuggerState === DebuggerState.errored)
+		// sems like using continue ('go') after an error causes next execution to skip over to the error, even after changing the script.
+		// using 'so' after an error doesn't seem to cause this issue (tested on TF2)
+		if(this.debuggerState === DebuggerState.errored && this.scriptVersion === VScriptVersion.squirrel3)
 		{
-			this.socket?.write("rd\n", "ascii");
-			this.debugPrint("Sending 'rd' message (ready)");
+			this.socket?.write("so\n", "ascii");
+			this.debugPrint("Sending 'so' message (step over)");
 		}
-		this.socket?.write("go\n", "ascii");
-		this.debugPrint("Sending 'go' message (resume)");
+		else
+		{
+			this.socket?.write("go\n", "ascii");
+			this.debugPrint("Sending 'go' message (resume)");
+		}
 		this.debuggerState = DebuggerState.ready;
 	}
 
