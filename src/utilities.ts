@@ -56,44 +56,28 @@ export function pathToUri(path: string)
 }
 
 /**
- * Finds the VScripts main path starting from the current workspace folder based on the condition that the name of the folder is named 'vscripts' which is also required to be detected by the game.
- *
- * If no parent directories that match this criterion are found, the current workspace is assumed to be the script path.
- *
- * In case the workspace doesn't exist an empty string is returned
+ * Return an array of strings containing paths to all workspace root folders
  * @returns The main path which VScripts reside in
  */
-export function getScriptRootPath(): string
+export function getScriptRootDirectories(): Array<string>
 {
-	let originalPath = "";
-	let currentpath = "";
+	let workspacePaths: Array<string> = [];
 	if(!vscode.workspace.workspaceFolders)
 	{
 		if(vscode.window.activeTextEditor)
 		{
-			currentpath = path.dirname(vscode.window.activeTextEditor.document.fileName);
-			originalPath = currentpath;
+			workspacePaths.push(path.dirname(vscode.window.activeTextEditor.document.fileName));
 		}
 		else
 		{
-			return "";
+			return [];
 		}
 	}
 	else
 	{
-		currentpath = vscode.workspace.workspaceFolders[0].uri.fsPath;
-		originalPath = currentpath;
+		workspacePaths = vscode.workspace.workspaceFolders.map((folder) => folder.uri.fsPath);
 	}
-
-	while(path.basename(currentpath) !== "vscripts")
-	{
-		if(currentpath === path.dirname(currentpath)) // we hit the root. We don't have a script path. Let's assume the current workspace as one.
-		{
-			return originalPath;
-		}
-		currentpath = path.dirname(currentpath);
-	}
-	return currentpath;
+	return workspacePaths;
 }
 
 /**

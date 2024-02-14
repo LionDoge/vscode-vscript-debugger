@@ -18,7 +18,7 @@ import {
 	DebuggerWatch,
 	DebuggerState, VScriptVersion, ExceptionInformation, TreeNode, ReferenceVariable, FileReferenceData
 } from './customInterfaces';
-import { arrayMapToArray, getScriptRootPath, getRelativeScriptPath, convertVariableToDAP } from './utilities';
+import { arrayMapToArray, getScriptRootDirectories, getRelativeScriptPath, convertVariableToDAP } from './utilities';
 import { resolveFileReference } from './fileReferences';
 import { getTableFromReference, parseReceivedData } from './parsing';
 import { addWatch, evaluateWatchRequest, removeWatch } from './watches';
@@ -65,7 +65,6 @@ export class VScriptDebugSession extends LoggingDebugSession {
 
 	// Files
 	public resolvedFileReferences = new Map<string, FileReferenceData>(); // maps pure filename to absolute path, used for games that don't give full path. Resets on resume.
-	public currentWorkPath: string = "";
 	public additionalScriptDirectories = Array<string>();
 	private _notifiedFileBreakpoints = Array<string>();
 
@@ -222,7 +221,6 @@ export class VScriptDebugSession extends LoggingDebugSession {
 			this._breakpoints.clear();
 			this.socket?.write('rd\n', 'ascii', () => this.sendEvent(new ProgressEndEvent("1001")));
 			this.debuggerState = DebuggerState.ready;
-			this.currentWorkPath = getScriptRootPath();
 			this._notifiedFileBreakpoints = [];
 
 			if(VScriptDebugSession.config.get('displayRootTable'))
@@ -427,7 +425,6 @@ export class VScriptDebugSession extends LoggingDebugSession {
 		try
 		{
 			this.updateProgressBar(ProgressIconState.parsing);
-			this.currentWorkPath = getScriptRootPath();
 			this.stackFrameID = 0;
 			// Split in case too much data arrives at once.
 			for(let dataPackage of this._bufferedData.split("\r\n"))
@@ -444,9 +441,10 @@ export class VScriptDebugSession extends LoggingDebugSession {
 			}
 			this.updateProgressBar(ProgressIconState.hidden);
 		}
-		catch
+		catch(error)
 		{
 			window.showErrorMessage("An error has occured while receiving and parsing data from the debug server on the current step, information cannot be displayed.\n");
+			console.log(error);
 			let stopEvent = new StoppedEvent("step", VScriptDebugSession.threadID, "Stopped due to extension error");
 			this.sendEvent(stopEvent);
 		}
@@ -506,11 +504,11 @@ export class VScriptDebugSession extends LoggingDebugSession {
 				break;
 		}
 
-		const rootPath = getScriptRootPath();
-		if(rootPath !== "" && args.additionalScriptDirectories)
+		const rootPaths = getScriptRootDirectories();
+		if(rootPaths.length > 0 && args.additionalScriptDirectories)
 		{
 			// filter elements that are already subpaths of the root directory so we don't get duplicates.
-			let allPaths = args.additionalScriptDirectories.concat(rootPath);
+			let allPaths = args.additionalScriptDirectories.concat(rootPaths);
 			this.additionalScriptDirectories = args.additionalScriptDirectories.filter((element, index) => {
 				for(let [innerIndex, existingElement] of (allPaths).entries())
 				{

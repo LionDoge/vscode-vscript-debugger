@@ -2,7 +2,7 @@
 
 import * as vscode from 'vscode';
 import {window} from 'vscode';
-import { getScriptRootPath, pathToUri } from "./utilities";
+import { getScriptRootDirectories, pathToUri } from "./utilities";
 import { VScriptDebugSession } from './vscriptDebug';
 import path = require('path');
 
@@ -19,37 +19,30 @@ export async function resolveFileReference(debugSession: VScriptDebugSession, fi
 	const pathPrefix = "scripts/vscripts";
 	if(filename.startsWith(pathPrefix))
 	{
-		let fileString = path.join(getScriptRootPath(), filename.slice(pathPrefix.length + 1));
-		let fileUri = vscode.Uri.file(fileString);
+		const scriptDirectories: Array<string> = getScriptRootDirectories().concat(debugSession.additionalScriptDirectories);
 		let fileThenables: Thenable<number>[] = [];
-
-		fileNames.push(fileString);
 		let fileIdx = 0;
-		try {
-			await vscode.workspace.fs.stat(fileUri);
-			// this will not happen if above fails, instead we catch and search in additional directories.
-			fileNames = [fileString];
-		} catch {
-			// if we didn't find the file in root script directory, maybe it's in additional directories?
-			for(let scriptPath of debugSession.additionalScriptDirectories)
-			{
-				let fileString = path.join(scriptPath, filename.slice(pathPrefix.length + 1));
-				let fileUri = vscode.Uri.file(fileString);
+		for(let scriptPath of scriptDirectories)
+		{
+			let fileString = path.join(scriptPath, filename.slice(pathPrefix.length + 1));
+			let fileUri = vscode.Uri.file(fileString);
 
-				fileNames.push(fileString); // fs.stat doesn't give us back the filename, we need to remember it.
-				fileThenables.push(
-					vscode.workspace.fs.stat(fileUri).then((value: vscode.FileStat) => {
-						return fileIdx;
-					})
-				);
-				fileIdx++;
-			}
-
-			let completedPromise = Promise.any(fileThenables);
-			await completedPromise.then((validFileIndex: number) => {
-				fileIdx = validFileIndex;
-			}).catch(() => l4d2_notFound = true);
+			fileNames.push(fileString); // fs.stat doesn't give us back the filename, we need to remember it.
+			fileThenables.push(
+				vscode.workspace.fs.stat(fileUri).then((value: vscode.FileStat) => {
+					return fileIdx;
+				})
+			);
+			fileIdx++;
 		}
+		// we do not look at the case where there are multiple files found (in L4D2) as that would mean that the game loads one of it
+		// and we don't really know which one, so this is "undefined behavior" for us. (whicever file is found first)
+		
+		let completedPromise = Promise.any(fileThenables);
+		await completedPromise.then((validFileIndex: number) => {
+			fileIdx = validFileIndex;
+		}).catch(() => l4d2_notFound = true);
+
 		if(!l4d2_notFound)
 		{
 			// we just use an array with one element to be compatible with rest of the code, and without having to do additional checks etc.
@@ -59,30 +52,36 @@ export async function resolveFileReference(debugSession: VScriptDebugSession, fi
 	else // other games don't support full paths.
 	{
 		let filesPromises: Promise<string[]>[] = [];
-		if(debugSession.currentWorkPath !== "")
+		const scriptDirectories: Array<string> = getScriptRootDirectories().concat(debugSession.additionalScriptDirectories);
+		for(let directory of scriptDirectories)
 		{
-			filesPromises.push(findFileRecusive(debugSession.currentWorkPath, filename));
-		}
-		for(let directory of debugSession.additionalScriptDirectories)
-		{
+			// TODO: get current workspace directory from VScriptConfigurationProvider to resolve relative paths.
+			// this is for directories that are not absolute, we need to make them absolute.
+			/*
 			if(!path.isAbsolute(directory))
 			{
 				directory = path.join(debugSession.currentWorkPath, directory);
-			}
+			}*/
 			filesPromises.push(findFileRecusive(directory, filename));
 		}
-		await Promise.all(filesPromises).then((values) => {
-			filesArraysArray = values;
-			for(let filedirs of values)
+		await Promise.allSettled(filesPromises).then((promiseResults: PromiseSettledResult<string[]>[]) => {
+			let fileDirs: Array<string> = [];
+			for(let promise of promiseResults)
 			{
-				for(let filedir of filedirs)
+				if(promise.status === "fulfilled")
 				{
-					// a way to avoid dupes, quite a bit slower than just concact, but realistically we won't have much directories in here anyways.
-					filedir = filedir.replace(/\\/g, "/");
-					if(!fileNames.includes(filedir))
-					{
-						fileNames.push(filedir);
-					}
+					fileDirs = fileDirs.concat(promise.value);
+					filesArraysArray.push(promise.value);
+				}
+			}
+
+			for(let filedir of fileDirs)
+			{
+				// a way to avoid dupes, quite a bit slower than just concact, but realistically we won't have much directories in here anyways.
+				filedir = filedir.replace(/\\/g, "/");
+				if(!fileNames.includes(filedir))
+				{
+					fileNames.push(filedir);
 				}
 			}
 		});
@@ -175,14 +174,9 @@ function presentFileQuickPick(debugSession: VScriptDebugSession, filesArraysArra
 	}
 
 	let quickPickItemList = new Array<vscode.QuickPickItem>;
-	let directories: Array<string> = [];
+	let directories: Array<string> = getScriptRootDirectories().concat(debugSession.additionalScriptDirectories);
 
-	if(debugSession.currentWorkPath !== "")
-	{
-		directories.push(debugSession.currentWorkPath);
-	}
-
-	for(let [idx, scriptDirectory] of directories.concat(debugSession.additionalScriptDirectories).entries())
+	for(let [idx, scriptDirectory] of directories.entries())
 	{
 		let detail = scriptDirectory;
 		let filesArray = filesArraysArray[idx];
