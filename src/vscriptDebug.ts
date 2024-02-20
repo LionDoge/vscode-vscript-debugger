@@ -467,15 +467,26 @@ export class VScriptDebugSession extends LoggingDebugSession {
 		this._configurationDone.notify();
 	}
 
-	protected disconnectRequest(response: DebugProtocol.DisconnectResponse, args: DebugProtocol.DisconnectArguments, request?: DebugProtocol.Request): void
+	private terminateDebugging()
 	{
-		//console.log(`disconnectRequest suspend: ${args.suspendDebuggee}, terminate: ${args.terminateDebuggee}`);
 		this.socket?.write("tr\n", "ascii", () => {
 			console.log("sent terminate request");
 			this.debuggerState = DebuggerState.disconnected;
 		});
 		this.socket?.end();
+		this.sendEvent(new ProgressEndEvent("1001"));
 		this.sendEvent(new TerminatedEvent());
+	}
+
+	protected terminateRequest(response: DebugProtocol.TerminateResponse, args: DebugProtocol.TerminateArguments, request?: DebugProtocol.Request): void {
+		this.terminateDebugging();
+		this.sendResponse(response);
+	}
+
+	protected disconnectRequest(response: DebugProtocol.DisconnectResponse, args: DebugProtocol.DisconnectArguments, request?: DebugProtocol.Request): void
+	{
+		//console.log(`disconnectRequest suspend: ${args.suspendDebuggee}, terminate: ${args.terminateDebuggee}`);
+		this.terminateDebugging();
 		this.sendResponse(response);
 	}
 
@@ -513,7 +524,7 @@ export class VScriptDebugSession extends LoggingDebugSession {
 		}
 
 		await Promise.allSettled(existsPromises).then((promiseResults: PromiseSettledResult<vscode.FileStat>[]) => {
-			args.additionalScriptDirectories!.filter((element, index) => {
+			this.additionalScriptDirectories = args.additionalScriptDirectories!.filter((element, index) => {
 				if(promiseResults[index].status === "fulfilled")
 				{
 					return true;
@@ -525,11 +536,11 @@ export class VScriptDebugSession extends LoggingDebugSession {
 				}
 			});
 		});
-		if(rootPaths.length > 0 && args.additionalScriptDirectories)
+		if(rootPaths.length > 0 && this.additionalScriptDirectories)
 		{
 			// filter elements that are already subpaths of the root directory so we don't get duplicates.
-			let allPaths = args.additionalScriptDirectories.concat(rootPaths);
-			this.additionalScriptDirectories = args.additionalScriptDirectories.filter((element, index) => {
+			let allPaths = this.additionalScriptDirectories.concat(rootPaths);
+			this.additionalScriptDirectories = this.additionalScriptDirectories.filter((element, index) => {
 				for(let [innerIndex, existingElement] of (allPaths).entries())
 				{
 					if(innerIndex === index) {continue;}
