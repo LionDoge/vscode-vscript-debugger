@@ -131,7 +131,8 @@ function presentFileMissingMessage(debugSession: VScriptDebugSession, filename: 
 		const RESUME_TEXT = "Resume";
 		const STEPOUT_TEXT = "Step Out";
 
-		window.showErrorMessage("File: "+filename+" not found in the current workspace. Add paths in 'additionalScriptDirectories' to launch.json to search in more specified locations.", { title: RESUME_TEXT }, { title: STEPOUT_TEXT}, {title: "Ignore"}).then((choice) => {
+		window.showErrorMessage("File: "+filename+" not found in the current workspace. Add paths in 'additionalScriptDirectories' to launch.json to search in more specified locations.",
+		 { title: RESUME_TEXT }, { title: STEPOUT_TEXT}, {title: "Ignore"}).then((choice) => {
 			if(choice)
 			{
 				if(choice.title === RESUME_TEXT)
