@@ -260,7 +260,7 @@ export class VScriptDebugSession extends LoggingDebugSession {
 								showUser: false
 							});
 						}
-						this.sendEvent(new TerminatedEvent());
+						//this.sendEvent(new TerminatedEvent());
 						return;
 					}
 					this.attemptConnect();
@@ -544,7 +544,7 @@ export class VScriptDebugSession extends LoggingDebugSession {
 				for(let [innerIndex, existingElement] of (allPaths).entries())
 				{
 					if(innerIndex === index) {continue;}
-					
+
 					// check if path exists
 					let relativePath = path.relative(existingElement, element);
 					if (relativePath && !relativePath.startsWith('..') && !path.isAbsolute(relativePath))
@@ -1183,7 +1183,7 @@ export class VScriptDebugSession extends LoggingDebugSession {
 			this._cancellationTokens.set(args.requestId, true);
 		}
 		if (args.progressId) {
-			this._cancelledProgressId= args.progressId;
+			this._cancelledProgressId = args.progressId;
 		}
 	}
 
