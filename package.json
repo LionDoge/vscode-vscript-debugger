@@ -277,7 +277,7 @@
   },
   "dependencies": {
     "html-entities": "^2.4.0",
-    "vsce": "^2.15.0",
+    "@vscode/vsce": "^2.24.0",
     "xml-formatter": "^3.6.2",
     "xml2js": "^0.6.2"
   }
