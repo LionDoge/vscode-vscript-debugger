@@ -1,7 +1,7 @@
 {
   "name": "vscript-debug",
   "displayName": "VScript Debugger",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "publisher": "LionDoge",
   "description": "A debugger client for VScripts in games based on Source Engine.",
   "author": {

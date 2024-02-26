@@ -1,3 +1,6 @@
+## 0.2.7
+* Fixed an issue where the debugger failed to connect when the `additionalScriptDirectories` argument was missing from launch.json
+
 ## 0.2.6
 * Fixed multi-root workspace support
 * Added checks for `additionalScriptDirectories`
