@@ -518,24 +518,28 @@ export class VScriptDebugSession extends LoggingDebugSession {
 		const rootPaths = getScriptRootDirectories();
 
 		let existsPromises: Thenable<vscode.FileStat>[] = [];
-		for(let p of args.additionalScriptDirectories!)
-		{
-			existsPromises.push(vscode.workspace.fs.stat(vscode.Uri.file(p)));
-		}
 
-		await Promise.allSettled(existsPromises).then((promiseResults: PromiseSettledResult<vscode.FileStat>[]) => {
-			this.additionalScriptDirectories = args.additionalScriptDirectories!.filter((element, index) => {
-				if(promiseResults[index].status === "fulfilled")
-				{
-					return true;
-				}
-				else
-				{
-					this.sendEvent(new OutputEvent(`Additional script directory '${element}' does not exist, it will not be considered.\n`, "warning"));
-					return false;
-				}
+		if(args.additionalScriptDirectories)
+		{
+			for(let p of args.additionalScriptDirectories)
+			{
+				existsPromises.push(vscode.workspace.fs.stat(vscode.Uri.file(p)));
+			}
+
+			await Promise.allSettled(existsPromises).then((promiseResults: PromiseSettledResult<vscode.FileStat>[]) => {
+				this.additionalScriptDirectories = args.additionalScriptDirectories!.filter((element, index) => {
+					if(promiseResults[index].status === "fulfilled")
+					{
+						return true;
+					}
+					else
+					{
+						this.sendEvent(new OutputEvent(`Additional script directory '${element}' does not exist, it will not be considered.\n`, "warning"));
+						return false;
+					}
+				});
 			});
-		});
+		}
 		if(rootPaths.length > 0 && this.additionalScriptDirectories)
 		{
 			// filter elements that are already subpaths of the root directory so we don't get duplicates.
