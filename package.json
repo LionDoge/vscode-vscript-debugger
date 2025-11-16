@@ -1,7 +1,7 @@
 {
   "name": "vscript-debug",
   "displayName": "VScript Debugger",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "publisher": "LionDoge",
   "description": "A debugger client for VScripts in games based on Source Engine.",
   "author": {
@@ -47,27 +47,26 @@
     "vscode:prepublish": "rimraf dist && npm run -S esbuild-base -- --minify"
   },
   "devDependencies": {
-    "@total-typescript/ts-reset": "^0.5.1",
-    "@types/glob": "^8.1.0",
-    "@types/jest": "^29.5.11",
-    "@types/mocha": "^10.0.6",
-    "@types/node": "^20.10.5",
-    "@types/vscode": "^1.84.0",
+    "@total-typescript/ts-reset": "^0.6.1",
+    "@types/jest": "^30.0.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.10.1",
+    "@types/vscode": "^1.106.0",
     "@types/xml2js": "^0.4.14",
-    "@typescript-eslint/eslint-plugin": "^6.15.0",
-    "@typescript-eslint/parser": "^6.15.0",
-    "@vscode/debugadapter": "^1.64.0",
+    "@typescript-eslint/eslint-plugin": "^8.46.4",
+    "@typescript-eslint/parser": "^8.46.4",
+    "@vscode/debugadapter": "^1.68.0",
     "await-notify": "^1.0.1",
     "base64-js": "^1.5.1",
-    "esbuild": "^0.19.10",
-    "eslint": "^8.56.0",
+    "esbuild": "^0.27.0",
+    "eslint": "^9.39.1",
     "events": "^3.3.0",
-    "glob": "^10.3.10",
-    "mocha": "^10.2.0",
+    "glob": "^11.0.3",
+    "mocha": "^11.7.5",
     "path-browserify": "^1.0.1",
-    "rimraf": "^5.0.5",
-    "typescript": "^5.3.3",
-    "url": "^0.11.3"
+    "rimraf": "^6.1.0",
+    "typescript": "^5.9.3",
+    "url": "^0.11.4"
   },
   "main": "./dist/extension.js",
   "activationEvents": [
@@ -85,7 +84,7 @@
         "VScriptDebugger.connectionIP": {
           "type": "string",
           "default": "localhost",
-          "description": "The IP of the device on which the game is running to connect the debugger to. This setting can be overriden by the 'ip' setting in launch.json"
+          "description": "The IP of the device on which the game is running to connect the debugger to. This setting can be overriden by the 'ip' setting in launch.json. When running the game on the same device as VS Code use 'localhost'"
         },
         "VScriptDebugger.connectionPort": {
           "type": "integer",
@@ -104,7 +103,7 @@
         },
         "VScriptDebugger.scriptEngineVersion": {
           "type": "string",
-          "default": "Squirrel2",
+          "default": "Squirrel3",
           "description": "Defaults to this if not specified in launch.json. Determines which VScript engine version will be debugged. Used as a way to know which workarounds or specific functionalities need to be adjusted by the debugger.",
           "scope": "window",
           "enum": [
@@ -116,8 +115,8 @@
             "VSquirrel version 2.x"
           ],
           "enumDescriptions": [
-            "Squirrel version 3.x games (i.e. L4D2, Team Fortress 2 ...)",
-            "Squirrel version 2.x games (i.e. Portal 2, CS:GO ...)"
+            "Squirrel version 3.x games (for most modern games)",
+            "Squirrel version 2.x games (for legacy games)"
           ]
         },
         "VScriptDebugger.maximumStructureShortRepresentationValues": {
@@ -218,8 +217,8 @@
                   "Squirrel2"
                 ],
                 "enumDescriptions": [
-                  "Squirrel version 3.x games (i.e. L4D2, Team Fortress 2 ...)",
-                  "Squirrel version 2.x games (i.e. Portal 2, CS:GO ...). This setting is forwards compatible with Squirrel 3"
+                  "Squirrel version 3.x games (for most modern games).",
+                  "Squirrel version 2.x games (for legacy games). This setting is forwards compatible with Squirrel 3"
                 ]
               },
               "ip": {
@@ -244,13 +243,13 @@
             "request": "attach",
             "name": "VScript",
             "ip": "localhost",
-            "engineVersion": "Squirrel2"
+            "engineVersion": "Squirrel3"
           }
         ],
         "configurationSnippets": [
           {
-            "label": "VScript (Squirrel v3.x)",
-            "description": "Squirrel version 3.x games (i.e. L4D2, Team Fortress 2 ...)",
+            "label": "VScript",
+            "description": "Squirrel version 3.x+ games (Most modern games)",
             "body": {
               "type": "vscript",
               "request": "attach",
@@ -260,7 +259,7 @@
           },
           {
             "label": "VScript (Squirrel v2.x)",
-            "description": "Squirrel version 2.x games (i.e. Portal 2, CS:GO ...)",
+            "description": "Squirrel version 2.x legacy games (like CS:GO ...)",
             "body": {
               "type": "mock",
               "request": "attach",
@@ -276,9 +275,9 @@
     ]
   },
   "dependencies": {
-    "html-entities": "^2.4.0",
-    "@vscode/vsce": "^2.24.0",
-    "xml-formatter": "^3.6.2",
+    "html-entities": "^2.6.0",
+    "@vscode/vsce": "^3.7.0",
+    "xml-formatter": "^3.6.7",
     "xml2js": "^0.6.2"
   }
 }
